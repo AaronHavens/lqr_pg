@@ -19,7 +19,7 @@ class LQREnv(gym.Env):
                             [0, 0.1]]
                             )
         high = np.array([np.inf, np.inf, np.inf])
-        high_u = np.array([np.inf, np.inf])
+        high_u = np.array([3, 3])
         self.observation_space = spaces.Box(low=-high, high=high)
         self.action_space = spaces.Box(low=-high_u, high=high_u)
 
@@ -32,7 +32,7 @@ class LQREnv(gym.Env):
         r += np.matmul(u.T, np.matmul(self.R, u))
         self.state = x_next
         self.t += 1
-        return x_next, r , self.isDone(), None
+        return x_next, -r , self.isDone(), {}
 
     def reset(self):
         self.t = 0
@@ -45,6 +45,6 @@ class LQREnv(gym.Env):
 
     def isDone(self):
         done = False
-        if self.t > 200:
+        if self.t > 50:
             done = True
         return done
