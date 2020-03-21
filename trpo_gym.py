@@ -103,11 +103,13 @@ def update_params(batch):
 
 def main_loop():
     avg_reward_n = np.zeros(args.max_iter_num, dtype=np.float32)
+    avg_reward_n_eval = np.zeros(args.max_iter_num, dtype=np.float32)
     total_steps = np.zeros(args.max_iter_num, dtype=np.float32)
-    log_dict = {'reward':avg_reward_n, 'total_steps':total_steps}
+    log_dict = {'reward':avg_reward_n, 'reward_eval':avg_reward_n_eval, 'total_steps':total_steps}
     for i_iter in range(args.max_iter_num):
         """generate multiple trajectories that reach the minimum batch_size"""
-        batch, log = agent.collect_samples(args.min_batch_size)
+        batch, log = agent.collect_samples(args.min_batch_size, stochastic=True)
+        _, log_eval = agent.collect_samples(args.min_batch_size, stochastic=False)
         t0 = time.time()
         update_params(batch)
         t1 = time.time()
@@ -116,6 +118,7 @@ def main_loop():
             print('{}\tT_update {:.4f}\tR_min {:.2f}\tR_max {:.2f}\tR_avg {:.2f}'.format(
                 i_iter, t1-t0, log['min_reward'], log['max_reward'], log['avg_reward']))
         log_dict['reward'][i_iter] = log['avg_reward']
+        log_dict['reward_eval'][i_iter] = log_eval['avg_reward']
         log_dict['total_steps'][i_iter] = (i_iter * args.min_batch_size)
         if args.save_model_interval > 0 and (i_iter+1) % args.save_model_interval == 0:
             to_device(torch.device('cpu'), policy_net, value_net)

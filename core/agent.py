@@ -4,7 +4,7 @@ from utils.torch import *
 import math
 
 
-def collect_samples(pid, queue, env, policy, mean_action, render, running_state, min_batch_size):
+def collect_samples(pid, queue, env, policy, stochastic, render, running_state, min_batch_size):
     torch.randn(pid)
     log = dict()
     memory = Memory()
@@ -23,7 +23,7 @@ def collect_samples(pid, queue, env, policy, mean_action, render, running_state,
         for t in range(10000):
             state_var = tensor(state).unsqueeze(0)
             with torch.no_grad():
-                if mean_action:
+                if not stochastic:
                     action = policy(state_var)[0][0].numpy()
                 else:
                     action = policy.select_action(state_var)[0].numpy()
@@ -77,12 +77,10 @@ def merge_log(log_list):
 
 class Agent:
 
-    def __init__(self, env, policy, device,
-                 mean_action=False, render=False, running_state=None, num_threads=1):
+    def __init__(self, env, policy, device, render=False, running_state=None, num_threads=1):
         self.env = env
         self.policy = policy
         self.device = device
-        self.mean_action = mean_action
         self.running_state = running_state
         self.render = render
         self.num_threads = num_threads
@@ -95,21 +93,21 @@ class Agent:
         return action
 
 
-    def collect_samples(self, min_batch_size):
+    def collect_samples(self, min_batch_size, stochastic=False):
         to_device(torch.device('cpu'), self.policy)
         thread_batch_size = int(math.floor(min_batch_size / self.num_threads))
         queue = multiprocessing.Queue()
         workers = []
 
         for i in range(self.num_threads-1):
-            worker_args = (i+1, queue, self.env, self.policy, self.mean_action,
+            worker_args = (i+1, queue, self.env, self.policy, stochastic,
                            False, self.running_state, thread_batch_size)
             workers.append(multiprocessing.Process(target=collect_samples, args=worker_args))
         for worker in workers:
             worker.start()
 
         memory, log = collect_samples(0, None, self.env, self.policy,
-                                    self.mean_action, self.render, 
+                                    stochastic, self.render, 
                                     self.running_state, thread_batch_size)
 
         worker_logs = [None] * len(workers)
