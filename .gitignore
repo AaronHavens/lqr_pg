@@ -1,2 +1,4 @@
 *.pyc
-__pychache__
+*.egg-info/
+__pychache__/
+
