@@ -5,7 +5,7 @@
 * Gym
 ### Install LQR Env
 ```
-cd pg_lqr
+cd lqr_pg
 python -m pip install --user gym-lqr
 ```
 ## Example Result
