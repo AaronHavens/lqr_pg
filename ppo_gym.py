@@ -89,7 +89,7 @@ optim_epochs = 10
 optim_batch_size = 64
 
 """create agent"""
-agent = Agent(env, policy_net, device, running_state=running_state, render=args.render, num_threads=args.num_threads)
+agent = Agent(env, policy_net, device, running_state=running_state, render=args.render, num_threads=args.num_threads, mean_action=False)
 
 
 def update_params(batch, i_iter):
@@ -124,6 +124,9 @@ def update_params(batch, i_iter):
 
 
 def main_loop():
+    avg_reward_n = np.zeros(args.max_iter_num, dtype=np.float32)
+    total_steps = np.zeros(args.max_iter_num, dtype=np.float32)
+    log_dict = {'reward':avg_reward_n, 'total_steps':total_steps}
     for i_iter in range(args.max_iter_num):
         """generate multiple trajectories that reach the minimum batch_size"""
         batch, log = agent.collect_samples(args.min_batch_size)
@@ -132,15 +135,17 @@ def main_loop():
         t1 = time.time()
 
         if i_iter % args.log_interval == 0:
-            print('{}\tT_sample {:.4f}\tT_update {:.4f}\tR_min {:.2f}\tR_max {:.2f}\tR_avg {:.2f}'.format(
-                i_iter, log['sample_time'], t1-t0, log['min_reward'], log['max_reward'], log['avg_reward']))
-
+            print('{}\tT_update {:.4f}\tR_min {:.2f}\tR_max {:.2f}\tR_avg {:.2f}'.format(
+                i_iter, t1-t0, log['min_reward'], log['max_reward'], log['avg_reward']))
+        log_dict['reward'][i_iter] = log['avg_reward']
+        log_dict['total_steps'][i_iter] = (i_iter * args.min_batch_size)
         if args.save_model_interval > 0 and (i_iter+1) % args.save_model_interval == 0:
             to_device(torch.device('cpu'), policy_net, value_net)
             pickle.dump((policy_net, value_net, running_state),
                         open(os.path.join(learned_dir(), 'ppo/'+args.save_name_ext+'-{}.p'.format(args.env_name)), 'wb'))
             to_device(device, policy_net, value_net)
-
+        with open('logs/ppo/'+args.save_name_ext+'-{}'.format(args.env_name)+'.pkl', 'wb') as f:
+            pickle.dump(log_dict, f)
         """clean up gpu memory"""
         torch.cuda.empty_cache()
 
